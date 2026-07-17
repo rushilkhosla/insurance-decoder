@@ -132,11 +132,19 @@ def analyze():
     if not m:
         app.logger.error("No JSON object found in model response. Raw (first 2000 chars): %s", raw[:2000])
         return jsonify(error="Model returned an unparseable response, please retry."), 502
+    json_text = m.group(0)
     try:
-        data = json.loads(m.group(0))
-    except json.JSONDecodeError as e:
-        app.logger.error("JSON decode failed: %s. Raw (first 2000 chars): %s", e, raw[:2000])
-        return jsonify(error="Model returned invalid JSON, please retry."), 502
+        data = json.loads(json_text)
+    except json.JSONDecodeError:
+        # Model occasionally emits a stray ';' where a ',' belongs (e.g. "...text";  ,)
+        # or a trailing comma before a closing bracket. Try a light repair before giving up.
+        repaired = re.sub(r'";(\s*),', r'",', json_text)
+        repaired = re.sub(r',(\s*[}\]])', r'\1', repaired)
+        try:
+            data = json.loads(repaired)
+        except json.JSONDecodeError as e:
+            app.logger.error("JSON decode failed even after repair: %s. Raw (first 2000 chars): %s", e, raw[:2000])
+            return jsonify(error="Model returned invalid JSON, please retry."), 502
     if data.get("error"):
         return jsonify(error=data["error"]), 422
     return jsonify(data)
