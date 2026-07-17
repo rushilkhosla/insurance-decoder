@@ -19,6 +19,26 @@ app = Flask(__name__)
 PORT = 8523
 MAX_POLICY_CHARS = 150_000  # ~40k tokens; enough for any retail policy wording
 
+ALLOWED_ORIGINS = {
+    "https://sevenfigurewealth.in",
+    "https://www.sevenfigurewealth.in",
+}
+
+
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get("Origin")
+    if origin in ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+
+@app.route("/analyze", methods=["OPTIONS"])
+def analyze_preflight():
+    return "", 204
+
 
 def load_api_key():
     key = os.environ.get("ANTHROPIC_API_KEY")
