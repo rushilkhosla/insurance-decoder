@@ -156,9 +156,11 @@ def analyze():
     try:
         data = json.loads(json_text)
     except json.JSONDecodeError:
-        # Model occasionally emits a stray ';' where a ',' belongs (e.g. "...text";  ,)
-        # or a trailing comma before a closing bracket. Try a light repair before giving up.
-        repaired = re.sub(r'";(\s*),', r'",', json_text)
+        # Model occasionally emits a stray ';' right after a string value where a ','
+        # belongs — sometimes with a real ',' still following it, sometimes not.
+        # Collapse both variants down to a single correct ','.
+        repaired = re.sub(r'";(\s*,)?', '",', json_text)
+        # Trailing comma before a closing bracket/brace.
         repaired = re.sub(r',(\s*[}\]])', r'\1', repaired)
         try:
             data = json.loads(repaired)
